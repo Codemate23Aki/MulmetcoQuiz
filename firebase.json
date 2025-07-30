@@ -1,0 +1,29 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "mulmetco-48a00",
+          "appId": "1:323752261193:android:96bec3753466b541c67198",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "mulmetco-48a00",
+          "configurations": {
+            "android": "1:323752261193:android:96bec3753466b541c67198"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "dashboard/build",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}
