@@ -54,6 +54,24 @@ class HomePage extends StatelessWidget {
     );
   }
 
+  void _showScores(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const ScoresBottomSheet(),
+    );
+  }
+
+  void _showProfile(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const ProfileBottomSheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -187,31 +205,23 @@ class HomePage extends StatelessWidget {
                         _buildQuickActionCard(
                           icon: Icons.emoji_events,
                           title: 'My Races',
-                          subtitle: 'Your quiz history',
+                          subtitle: 'Your quiz',
                           color: const Color(0xFF203E52),
                           onTap: () => _showMyRaces(context),
                         ),
                         _buildQuickActionCard(
-                          icon: Icons.history,
-                          title: 'History',
-                          subtitle: 'Past quizzes',
+                          icon: Icons.assessment,
+                          title: 'Scores',
+                          subtitle: 'Quiz results',
                           color: Colors.green,
-                          onTap: () => _showHistory(context),
+                          onTap: () => _showScores(context),
                         ),
                         _buildQuickActionCard(
-                          icon: Icons.settings,
-                          title: 'Settings',
-                          subtitle: 'Preferences',
-                          color: Colors.grey,
-                          onTap: () {
-                            // TODO: Navigate to settings
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Settings feature coming soon!'),
-                                backgroundColor: Colors.grey,
-                              ),
-                            );
-                          },
+                          icon: Icons.person,
+                          title: 'Profile',
+                          subtitle: 'User info',
+                          color: Colors.blue,
+                          onTap: () => _showProfile(context),
                         ),
                       ],
                     ),
@@ -280,6 +290,377 @@ class HomePage extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class ScoresBottomSheet extends StatelessWidget {
+  const ScoresBottomSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'My Scores',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF203E52),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('quiz_scores')
+                    .where('userId', isEqualTo: user?.uid)
+                    .orderBy('completedAt', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.assessment_outlined,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No scores yet',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Complete a quiz to see your scores here',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  
+                  return ListView.builder(
+                    itemCount: snapshot.data!.docs.length,
+                    itemBuilder: (context, index) {
+                      final scoreDoc = snapshot.data!.docs[index];
+                      final scoreData = scoreDoc.data() as Map<String, dynamic>;
+                      
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: _getScoreColor(scoreData['score'] ?? 0, scoreData['totalQuestions'] ?? 1),
+                                borderRadius: BorderRadius.circular(25),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${((scoreData['score'] ?? 0) / (scoreData['totalQuestions'] ?? 1) * 100).round()}%',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    scoreData['quizTitle'] ?? 'Unknown Quiz',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF203E52),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${scoreData['score'] ?? 0}/${scoreData['totalQuestions'] ?? 0} correct',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatDate(scoreData['completedAt']),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[500],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getScoreColor(int score, int total) {
+    final percentage = score / total;
+    if (percentage >= 0.8) return Colors.green;
+    if (percentage >= 0.6) return Colors.orange;
+    return Colors.red;
+  }
+
+  String _formatDate(dynamic timestamp) {
+    if (timestamp == null) return 'Unknown';
+    
+    DateTime date;
+    if (timestamp is Timestamp) {
+      date = timestamp.toDate();
+    } else {
+      return 'Unknown';
+    }
+    
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays == 0) {
+      return 'Today';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+}
+
+class ProfileBottomSheet extends StatelessWidget {
+  const ProfileBottomSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Profile',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF203E52),
+              ),
+            ),
+            const SizedBox(height: 30),
+            
+            // Profile Picture
+            CircleAvatar(
+              radius: 60,
+              backgroundImage: user?.photoURL != null
+                  ? NetworkImage(user!.photoURL!)
+                  : null,
+              backgroundColor: Colors.orange,
+              child: user?.photoURL == null
+                  ? Text(
+                      user?.displayName?.substring(0, 1).toUpperCase() ?? 'U',
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    )
+                  : null,
+            ),
+            
+            const SizedBox(height: 30),
+            
+            // User Information Cards
+            Expanded(
+              child: ListView(
+                children: [
+                  _buildInfoCard(
+                    icon: Icons.person,
+                    title: 'Display Name',
+                    value: user?.displayName ?? 'Not set',
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoCard(
+                    icon: Icons.email,
+                    title: 'Email',
+                    value: user?.email ?? 'Not available',
+                    color: Colors.green,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoCard(
+                    icon: Icons.verified_user,
+                    title: 'Email Verified',
+                    value: user?.emailVerified == true ? 'Yes' : 'No',
+                    color: user?.emailVerified == true ? Colors.green : Colors.orange,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoCard(
+                    icon: Icons.calendar_today,
+                    title: 'Member Since',
+                    value: user?.metadata.creationTime != null 
+                        ? _formatDate(Timestamp.fromDate(user!.metadata.creationTime!))
+                        : 'Unknown',
+                    color: Colors.purple,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoCard(
+                    icon: Icons.login,
+                    title: 'Last Sign In',
+                    value: user?.metadata.lastSignInTime != null 
+                        ? _formatDate(Timestamp.fromDate(user!.metadata.lastSignInTime!))
+                        : 'Unknown',
+                    color: Colors.indigo,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF203E52),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(Timestamp timestamp) {
+    final date = timestamp.toDate();
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays == 0) {
+      return 'Today';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 }
 
